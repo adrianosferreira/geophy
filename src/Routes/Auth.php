@@ -3,34 +3,29 @@
 namespace App\Routes;
 
 use App\Authentication\JwtAuthentication;
-use Slim\Http\Response;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 
-class Auth extends Route {
+class Auth implements RouteInterface {
 
-	public function __construct( \Slim\App $app ) {
-		parent::__construct( $app );
+	public const PATH = 'v1/auth';
+	private $route;
+
+	public function __construct( Route $route ) {
+		$this->route = $route;
 	}
 
-	protected function getPath(): string {
-		return 'auth';
+	public function register(): void {
+		$this->route->register( self::PATH, 'get', array( $this, 'callback' ) );
 	}
 
-	protected function getMethod(): string {
-		return 'get';
-	}
-
-	protected function getVersion(): string {
-		return 'v1';
-	}
-
-	public function getCallback( \Slim\Http\Request $request, \Slim\Http\Response $response ): Response {
+	public function callback( ServerRequestInterface $request, ResponseInterface $response ): ResponseInterface {
 		$token = array(
-			'user'     => $request->getHeader('username'),
-			'password' => $request->getHeader('password'),
+			'user'     => $request->getHeader( 'username' ),
+			'password' => $request->getHeader( 'password' ),
 		);
 
 		$jwt = \Firebase\JWT\JWT::encode( $token, JwtAuthentication::SECRET );
-
-		return $response->withJson( [ 'auth-jwt' => $jwt ], 200 )->withHeader( 'Content-type', 'application/json' );
+		return $this->route->response( $request, $response, [ 'token' => $jwt ], array() );
 	}
 }

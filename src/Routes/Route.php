@@ -1,27 +1,50 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: adriano
- * Date: 11/07/19
- * Time: 16:51
- */
 
 namespace App\Routes;
 
-abstract class Route {
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Slim\App;
 
-	const BASE = 'api';
+class Route {
 
-	public function __construct( \Slim\App $app ) {
+	public const BASE = 'api';
+	private $app;
+
+	public function __construct( App $app ) {
 		$this->app = $app;
 	}
 
-	public function register(): void {
-		$this->app->{ $this->getMethod() }( '/' . self::BASE . '/' . $this->getVersion() . '/' . $this->getPath(), array( $this, 'getCallback' ));
+	public function register( string $path, string $method, callable $callback ): void {
+		$path = sprintf( '/%s/%s', self::BASE, $path );
+		$this->app->{$method}( $path, $callback );
 	}
 
-	abstract protected function getMethod(): string;
-	abstract protected function getPath(): string;
-	abstract protected function getCallback( \Slim\Http\Request $request, \Slim\Http\Response $response  );
-	abstract protected function getVersion(): string;
+	public function response( ServerRequestInterface $request, ResponseInterface $response, $body, array $allowedParams ): ResponseInterface {
+		$invalidParams = $this->getInvalidParams( $request->getQueryParams(), $allowedParams );
+
+		if ( $invalidParams ) {
+			return $this->error( $response, sprintf( 'Invalid parameter: %s', implode( $invalidParams, ', ' ) ) );
+		}
+
+		return $response->withJson( $body, 200 )
+		                ->withHeader( 'Content-type', 'application/json' );
+	}
+
+	public function error( $response, $message ) {
+		return $response->withJson( array( 'error' => $message ), 405 )
+		                ->withHeader( 'Content-type', 'application/json' );
+	}
+
+	private function getInvalidParams( array $params, array $allowed ): array {
+		$invalidParameters = [];
+
+		foreach ( $params as $key => $param ) {
+			if ( ! \in_array( $key, $allowed, true ) ) {
+				$invalidParameters[] = $key;
+			}
+		}
+
+		return $invalidParameters;
+	}
 }

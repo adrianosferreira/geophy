@@ -2,3 +2,4 @@
 .idea/
 vendor/
 xdebug.log
+.phpunit.result.cache
